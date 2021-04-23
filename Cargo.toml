@@ -8,3 +8,5 @@ edition = "2018"
 [dependencies]
 zmq = {version = "0.9", features=["vendored"]}
 clap = "*"
+serde = { version = "1.0", features = ["derive"] }
+rmp-serde = "0.15.4"

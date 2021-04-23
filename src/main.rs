@@ -2,7 +2,11 @@
 //! Binds REP socket to tcp://*:5555
 //! Expects "Hello" from client, replies with "World"
 
+mod data;
+mod msg;
+
 use clap::{App, Arg};
+use data::Data;
 
 use std::thread;
 use std::time::Duration;
@@ -42,6 +46,8 @@ fn server(port: u32) {
     loop {
         responder.recv(&mut msg, 0).unwrap();
         println!("Received Message of Length {}", msg.len());
+        let req: msg::Request = rmp_serde::decode::from_slice(&msg).unwrap();
+        println!("Recieved Contents: {:?}", req);
 
         thread::sleep(Duration::from_millis(1000));
         let response = format!("Server Got {}", msg.len());
@@ -58,13 +64,15 @@ fn client(port: u32) {
     let addr = format!("tcp://localhost:{}", port);
     assert!(requester.connect(&addr).is_ok());
 
-    let mut msg = zmq::Message::new();
+    let mut response = zmq::Message::new();
 
     for request_nbr in 0..10 {
-        println!("Sending Hello {}...", request_nbr);
-        let data = vec![5; 5];
+        println!("Sending Message {}...", request_nbr);
+        let data = Data::new(&vec![1., 2., 3.]);
+        let msg = msg::Request::new(&data);
+        let mpk = rmp_serde::encode::to_vec(&msg).unwrap();
 
-        match requester.send(data, 0) {
+        match requester.send(mpk, 0) {
             Ok(_) => (),
             Err(msg) => {
                 println!("{}", msg);
@@ -72,14 +80,14 @@ fn client(port: u32) {
             }
         }
 
-        match requester.recv(&mut msg, 0) {
+        match requester.recv(&mut response, 0) {
             Ok(_) => (),
             Err(msg) => {
                 println!("{}", msg);
                 panic!("{}", msg);
             }
         }
-        println!("Received '{}': {}", msg.as_str().unwrap(), request_nbr);
+        println!("Received '{}': {}", response.as_str().unwrap(), request_nbr);
     }
 }
 
