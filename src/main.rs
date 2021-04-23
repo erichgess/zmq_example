@@ -8,6 +8,7 @@ mod msg;
 use clap::{App, Arg};
 use data::Data;
 use msg::{Response, Status};
+use zmq::{self, PollEvents};
 
 use std::thread;
 use std::time::Duration;
@@ -61,12 +62,11 @@ fn client(port: u32) {
     println!("Connecting to hello world server...\n");
 
     let context = zmq::Context::new();
-    let requester = context.socket(zmq::REQ).unwrap();
+    let mut requester = context.socket(zmq::REQ).unwrap();
+    println!("New Socket: {:?}", requester.get_identity().unwrap());
 
     let addr = format!("tcp://localhost:{}", port);
     assert!(requester.connect(&addr).is_ok());
-
-    let mut response = zmq::Message::new();
 
     for request_nbr in 0..10 {
         println!("Sending Message {}...", request_nbr);
@@ -74,22 +74,41 @@ fn client(port: u32) {
         let msg = msg::Request::new(&data);
         let mpk = rmp_serde::encode::to_vec(&msg).unwrap();
 
-        match requester.send(mpk, 0) {
-            Ok(_) => (),
-            Err(msg) => {
-                println!("{}", msg);
-                panic!("{}", msg);
-            }
+        while let Err(msg) = requester.send(&mpk, 0) {
+            println!("Send Error: {}", msg);
+            println!("Retrying...");
+            thread::sleep(Duration::from_millis(1000));
         }
 
-        match requester.recv(&mut response, 0) {
-            Ok(_) => {
-                let m: Response = rmp_serde::decode::from_slice(&response).unwrap();
-                println!("From Server '{:?}': {}", m, request_nbr);
-            }
-            Err(msg) => {
-                println!("{}", msg);
-                panic!("{}", msg);
+        println!("Waiting for server...");
+        loop {
+            match requester.poll(PollEvents::POLLIN, 5000) {
+                Ok(i) => {
+                    //
+                    println!("Polling #: {}", i);
+                    if i > 0 {
+                        let mut response = zmq::Message::new();
+                        match requester.recv(&mut response, 0) {
+                            Ok(_) => {
+                                let response: msg::Response =
+                                    rmp_serde::decode::from_slice(&response).unwrap();
+                                println!("Received '{:?}': {}", response, request_nbr);
+                                break;
+                            }
+                            Err(msg) => {
+                                panic!("Receive Error: {}", msg);
+                            }
+                        }
+                    } else {
+                        println!("No Event");
+                        drop(requester);
+                        requester = context.socket(zmq::REQ).unwrap();
+                        assert!(requester.connect(&addr).is_ok());
+                        println!("New Socket: {:?}", requester.get_identity().unwrap());
+                        break;
+                    }
+                }
+                Err(msg) => println!("Polling Error: {}", msg),
             }
         }
     }
