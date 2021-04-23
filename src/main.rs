@@ -28,10 +28,11 @@ fn server(port: u32) {
     let mut msg = zmq::Message::new();
     loop {
         responder.recv(&mut msg, 0).unwrap();
-        println!("Received {}", msg.as_str().unwrap());
+        println!("Received Message of Length {}", msg.len());
 
-        thread::sleep(Duration::from_millis(1000));
-        responder.send("World", 0).unwrap();
+        //thread::sleep(Duration::from_millis(1000));
+        let response = format!("Server Got {}", msg.len());
+        responder.send(&response, 0).unwrap();
     }
 }
 
@@ -48,10 +49,12 @@ fn client(port: u32) {
 
     for request_nbr in 0..10 {
         println!("Sending Hello {}...", request_nbr);
-        requester.send("Hello", 0).unwrap();
+        let data = vec![5; 1024 * 1024];
+
+        requester.send(data, 0).unwrap();
 
         requester.recv(&mut msg, 0).unwrap();
-        println!("Received World {}: {}", msg.as_str().unwrap(), request_nbr);
+        println!("Received '{}': {}", msg.as_str().unwrap(), request_nbr);
     }
 }
 
