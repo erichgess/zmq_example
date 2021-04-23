@@ -30,7 +30,7 @@ fn server(port: u32) {
         responder.recv(&mut msg, 0).unwrap();
         println!("Received Message of Length {}", msg.len());
 
-        //thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(1000));
         let response = format!("Server Got {}", msg.len());
         responder.send(&response, 0).unwrap();
     }
