@@ -42,3 +42,9 @@ REQ From A => Means that A has not received a message from us in the expected am
 
 ## Things I am missing
 1. This just covers work communication, it does not cover meta data communication (figuring out who owns what, who needs what data, constructing the topology, etc).
+
+
+## For ZeroMQ
+1. Figure out retry pattern and get that working
+2. Figure out how to do async Req/Res
+3. Figure out how to do async RECV/ACK

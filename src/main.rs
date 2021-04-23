@@ -3,6 +3,7 @@
 //! Expects "Hello" from client, replies with "World"
 
 use clap::{App, Arg};
+use zmq::{self, PollEvents};
 
 use std::thread;
 use std::time::Duration;
@@ -53,8 +54,9 @@ fn client(port: u32) {
     println!("Connecting to hello world server...\n");
 
     let context = zmq::Context::new();
-    let requester = context.socket(zmq::REQ).unwrap();
+    let mut requester = context.socket(zmq::REQ).unwrap();
     requester.set_rcvtimeo(5000).unwrap();
+    requester.set_sndtimeo(5000).unwrap();
     println!("{:?}", requester.get_rcvtimeo());
     println!("{:?}", requester.get_sndtimeo());
 
@@ -83,6 +85,9 @@ fn client(port: u32) {
                 Err(msg) => {
                     println!("Receive Error: {}", msg);
                     thread::sleep(Duration::from_millis(1000));
+                    println!("Creating a new connection...");
+                    requester = context.socket(zmq::REQ).unwrap();
+                    break;
                 }
             }
         }
