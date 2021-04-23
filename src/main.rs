@@ -29,6 +29,7 @@ fn server(port: u32) {
     loop {
         responder.recv(&mut msg, 0).unwrap();
         println!("Received {}", msg.as_str().unwrap());
+
         thread::sleep(Duration::from_millis(1000));
         responder.send("World", 0).unwrap();
     }
