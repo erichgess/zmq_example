@@ -2,19 +2,21 @@
 //! Binds REP socket to tcp://*:5555
 //! Expects "Hello" from client, replies with "World"
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg};
 
 use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let server_port = config_args();
+    let config = config_args();
+    let client_port = config.client;
+    let server_port = config.server;
 
     let server = thread::spawn(move || server(server_port));
-    let client = thread::spawn(move || client(server_port));
+    let client = thread::spawn(move || client(client_port));
 
-    server.join();
-    client.join();
+    server.join().unwrap();
+    client.join().unwrap();
 }
 
 fn server(port: u32) {
@@ -52,7 +54,12 @@ fn client(port: u32) {
     }
 }
 
-fn config_args() -> u32 {
+struct Config {
+    server: u32,
+    client: u32,
+}
+
+fn config_args() -> Config {
     let matches = App::new("Simple 0MQ Program")
         .arg(
             Arg::with_name("server-port")
@@ -61,9 +68,20 @@ fn config_args() -> u32 {
                 .long("server-port")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("client-port")
+                .required(true)
+                .short("c")
+                .long("client-port")
+                .takes_value(true),
+        )
         .get_matches();
 
     let server_port: u32 = matches.value_of("server-port").unwrap().parse().unwrap();
+    let client_port: u32 = matches.value_of("client-port").unwrap().parse().unwrap();
 
-    server_port
+    Config {
+        server: server_port,
+        client: client_port,
+    }
 }
