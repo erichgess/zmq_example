@@ -55,6 +55,8 @@ fn client(port: u32) {
     let context = zmq::Context::new();
     let requester = context.socket(zmq::REQ).unwrap();
     requester.set_rcvtimeo(5000).unwrap();
+    println!("{:?}", requester.get_rcvtimeo());
+    println!("{:?}", requester.get_sndtimeo());
 
     let addr = format!("tcp://localhost:{}", port);
     assert!(requester.connect(&addr).is_ok());
@@ -71,10 +73,17 @@ fn client(port: u32) {
             thread::sleep(Duration::from_millis(1000));
         }
 
-        match requester.recv(&mut msg, 0) {
-            Ok(_) => println!("Received '{}': {}", msg.as_str().unwrap(), request_nbr),
-            Err(msg) => {
-                println!("Receive Error: {}", msg);
+        println!("Waiting for server...");
+        loop {
+            match requester.recv(&mut msg, 0) {
+                Ok(_) => {
+                    println!("Received '{}': {}", msg.as_str().unwrap(), request_nbr);
+                    break;
+                }
+                Err(msg) => {
+                    println!("Receive Error: {}", msg);
+                    thread::sleep(Duration::from_millis(1000));
+                }
             }
         }
     }
