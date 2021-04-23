@@ -9,14 +9,27 @@ use std::time::Duration;
 
 fn main() {
     let config = config_args();
-    let client_port = config.client;
-    let server_port = config.server;
 
-    let server = thread::spawn(move || server(server_port));
-    let client = thread::spawn(move || client(client_port));
+    let mut threads = vec![];
 
-    server.join().unwrap();
-    client.join().unwrap();
+    match config.server {
+        Some(server_port) => {
+            let server = thread::spawn(move || server(server_port));
+            threads.push(server);
+        }
+        None => (),
+    }
+    match config.client {
+        Some(client_port) => {
+            let client = thread::spawn(move || client(client_port));
+            threads.push(client);
+        }
+        None => (),
+    }
+
+    for t in threads {
+        t.join().unwrap();
+    }
 }
 
 fn server(port: u32) {
@@ -49,40 +62,50 @@ fn client(port: u32) {
 
     for request_nbr in 0..10 {
         println!("Sending Hello {}...", request_nbr);
-        let data = vec![5; 1024 * 1024];
+        let data = vec![5; 5];
 
-        requester.send(data, 0).unwrap();
+        match requester.send(data, 0) {
+            Ok(_) => (),
+            Err(msg) => {
+                println!("{}", msg);
+                panic!("{}", msg);
+            }
+        }
 
-        requester.recv(&mut msg, 0).unwrap();
+        match requester.recv(&mut msg, 0) {
+            Ok(_) => (),
+            Err(msg) => {
+                println!("{}", msg);
+                panic!("{}", msg);
+            }
+        }
         println!("Received '{}': {}", msg.as_str().unwrap(), request_nbr);
     }
 }
 
 struct Config {
-    server: u32,
-    client: u32,
+    server: Option<u32>,
+    client: Option<u32>,
 }
 
 fn config_args() -> Config {
     let matches = App::new("Simple 0MQ Program")
         .arg(
             Arg::with_name("server-port")
-                .required(true)
                 .short("s")
                 .long("server-port")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("client-port")
-                .required(true)
                 .short("c")
                 .long("client-port")
                 .takes_value(true),
         )
         .get_matches();
 
-    let server_port: u32 = matches.value_of("server-port").unwrap().parse().unwrap();
-    let client_port: u32 = matches.value_of("client-port").unwrap().parse().unwrap();
+    let server_port: Option<u32> = matches.value_of("server-port").map(|v| v.parse().unwrap());
+    let client_port: Option<u32> = matches.value_of("client-port").map(|v| v.parse().unwrap());
 
     Config {
         server: server_port,
