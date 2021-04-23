@@ -7,6 +7,7 @@ mod msg;
 
 use clap::{App, Arg};
 use data::Data;
+use msg::{Response, Status};
 
 use std::thread;
 use std::time::Duration;
@@ -45,13 +46,14 @@ fn server(port: u32) {
     let mut msg = zmq::Message::new();
     loop {
         responder.recv(&mut msg, 0).unwrap();
-        println!("Received Message of Length {}", msg.len());
         let req: msg::Request = rmp_serde::decode::from_slice(&msg).unwrap();
-        println!("Recieved Contents: {:?}", req);
+        println!("From Client: {:?}", req);
 
         thread::sleep(Duration::from_millis(1000));
-        let response = format!("Server Got {}", msg.len());
-        responder.send(&response, 0).unwrap();
+
+        let response = Response::new(Status::Good(req.len()));
+        let mpk = rmp_serde::encode::to_vec(&response).unwrap();
+        responder.send(&mpk, 0).unwrap();
     }
 }
 
@@ -81,13 +83,15 @@ fn client(port: u32) {
         }
 
         match requester.recv(&mut response, 0) {
-            Ok(_) => (),
+            Ok(_) => {
+                let m: Response = rmp_serde::decode::from_slice(&response).unwrap();
+                println!("From Server '{:?}': {}", m, request_nbr);
+            }
             Err(msg) => {
                 println!("{}", msg);
                 panic!("{}", msg);
             }
         }
-        println!("Received '{}': {}", response.as_str().unwrap(), request_nbr);
     }
 }
 
