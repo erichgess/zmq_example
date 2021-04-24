@@ -11,10 +11,17 @@ mod server;
 use std::thread;
 
 use clap::{App, Arg};
+use log::LevelFilter;
+use simple_logger::SimpleLogger;
 
 use server::*;
 
 fn main() {
+    // configure logger
+    SimpleLogger::new()
+        .with_level(LevelFilter::Debug)
+        .init()
+        .unwrap();
     let config = config_args();
 
     let mut threads = vec![];

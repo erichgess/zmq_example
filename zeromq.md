@@ -69,3 +69,22 @@ This raises some questions:
 - How are messages ordered in the client side queue?
 - Why are only some of them delivered to the server before the client Drops the context?
 - Is it the context or the socket or what that is waiting for the server?
+
+I believe the issue comes in `Drop` for `Context`, after logging `context dropped` it then attempts to call this function:
+```rust
+impl RawContext {
+    fn term(&self) -> Result<()> {
+        zmq_try!(unsafe { zmq_sys::zmq_ctx_term(self.ctx) });
+        Ok(())
+    }
+}
+```
+and I think the `zmq_ctx_term` function is what causes the hang.  Which is substantiated from the [docs](http://api.zeromq.org/3-3:zmq-ctx-term):
+```none
+Context termination is performed in the following steps:
+
+    Any blocking operations currently in progress on sockets open within context shall return immediately with an error code of ETERM. With the exception of zmq_close(), any further operations on sockets open within context shall fail with an error code of ETERM.
+    After interrupting all blocking calls, zmq_ctx_term() shall block until the following conditions are satisfied: <itemizedlist> <listitem> All sockets open within context have been closed with zmq_close().
+    For each socket within context, all messages sent by the application with zmq_send() have either been physically transferred to a network peer, or the socket's linger period set with the ZMQ_LINGER socket option has expired.
+```
+Looks like I need to consider setting the linger period.
