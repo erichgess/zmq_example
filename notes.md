@@ -14,7 +14,9 @@
 
 5. A node will receive incoming messages from several peers.  The message types will be the same but the contents will be different (each peer will be sending data for different cells).  A peer will only need to run one server if that server can have many open connections.
 
-5. I will need to send out many messages to multiple peers. Should this be done serially or concurrently?  With ZeroMQ, how would I have multiple clients each sending different messages at the same time?   On the server side, should message handling be synchronous or asynchronous?  If sending out concurrent messages, then will need Message IDs so that the sender can confirm the receipt of each message.  What about backpressure?
+6. I will need to send out many messages to multiple peers. Should this be done serially or concurrently?  With ZeroMQ, how would I have multiple clients each sending different messages at the same time?   On the server side, should message handling be synchronous or asynchronous?  If sending out concurrent messages, then will need Message IDs so that the sender can confirm the receipt of each message.  What about backpressure?
+
+7. A peer may receive the same event multiple times.  For example, if A is attempting to push an event to B and B does not Ack in the Time out, then A will resend the event.  In this case, B could receive the message twice. In such a case, it must appear as if B received the message only once.
 
 
 ## Semantics
