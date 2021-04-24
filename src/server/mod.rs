@@ -105,8 +105,10 @@ pub fn client(port: u32) {
                             }
                         }
                     } else {
-                        println!("Timeout. Creating new connection...");
+                        println!("Timeout.");
+                        println!("Dropping socket");
                         drop(requester);
+                        println!("Creating new socket");
                         requester = context.socket(zmq::REQ).unwrap();
                         assert!(requester.connect(&addr).is_ok());
                     }
