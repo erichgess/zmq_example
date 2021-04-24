@@ -3,6 +3,8 @@
 1. The REQ/REP socket protocol requires serial and synchronous semantics.  A REQ message must be immediately followed by a REP message otherwise the client will fail.
 2. This makes timeouts a problem, since a timeout means that a REQ was sent but a REP was not received so we want to move to a new state (TIMEOUT) but the socket cannot move to a new state.  As such, we must use a different mechanism to effect the time out (The Poller) and then, if we timeout, we must destroy and recreate the socket.
 
+One thing to note about this Retry code, all settings for the socket are reset to the default settings.  So, those _must also_ be redone.  This makes me want to have a single code line that handles creating sockets that will be used for both creating the socket at the start of the process and for recreating when executing Retry logic.
+
 ```rust
 match requester.poll(PollEvents::POLLIN, 5000) {
     Ok(i) => {

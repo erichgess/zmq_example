@@ -1,13 +1,16 @@
-use crate::data::*;
-use crate::msg;
 use std::thread;
 use std::time::Duration;
+
+use log::{error, info};
+
+use crate::data::*;
+use crate::msg;
 
 /// Constants
 const RETRY_LIMIT: usize = 3;
 const RETRY_DELAY_MS: u64 = 1000;
 const POLL_TIMEOUT_MS: i64 = 5000;
-const LINGER_PERIOD_MS: i32 = -1;
+const LINGER_PERIOD_MS: i32 = 5000;
 
 /// The server will receive data pushed by peers.  It will Parse the event message
 /// and act accordingly.  For a Data message, the received data will be stored in
@@ -22,7 +25,7 @@ pub fn server(port: u32) {
     loop {
         responder.recv(&mut msg, 0).unwrap();
         let req: msg::Request = rmp_serde::decode::from_slice(&msg).unwrap();
-        println!("From Client: {:?}", req);
+        info!("From Client: {:?}", req);
 
         // Post message to a channel for processing and then send Ack
 
@@ -48,18 +51,18 @@ pub fn client(port: u32) {
     // push that dato to the peer
     // Setup ZeroMQ
     let addr = format!("tcp://localhost:{}", port);
-    println!("Connecting to {}...\n", addr);
+    info!("Connecting to {}...\n", addr);
 
     let context = zmq::Context::new();
     let mut requester = context.socket(zmq::REQ).unwrap();
     requester.set_linger(LINGER_PERIOD_MS).unwrap();
-    println!("Linger: {:?}", requester.get_linger());
-    println!("New Socket: {:?}", requester.get_identity().unwrap());
+    info!("Linger: {:?}", requester.get_linger());
+    info!("New Socket: {:?}", requester.get_identity().unwrap());
     assert!(requester.connect(&addr).is_ok());
 
     // Listen to for new data to be ready to push
     for request_nbr in 0..10 {
-        println!("Sending Data ID {}...", request_nbr);
+        info!("Sending Data ID {}...", request_nbr);
         let data = Data::new(&vec![1., 2., 3.]);
         let msg = msg::Request::new(request_nbr, &data);
         let mpk = rmp_serde::encode::to_vec(&msg).unwrap();
@@ -70,20 +73,20 @@ pub fn client(port: u32) {
             attempts += 1;
 
             if attempts > RETRY_LIMIT {
-                println!(
+                info!(
                     "Exceeded max retry limit ({}). Dropping message",
                     RETRY_LIMIT
                 );
                 break;
             } else if attempts > 1 {
-                println!("Wait {}ms then retry...", RETRY_DELAY_MS);
+                info!("Wait {}ms then retry...", RETRY_DELAY_MS);
                 thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
             }
 
             match requester.send(&mpk, 0) {
                 Ok(_) => (),
                 Err(msg) => {
-                    println!("Send Error: {}", msg);
+                    info!("Send Error: {}", msg);
                     continue;
                 }
             }
@@ -93,14 +96,14 @@ pub fn client(port: u32) {
             match requester.poll(zmq::PollEvents::POLLIN, POLL_TIMEOUT_MS) {
                 Ok(i) => {
                     //
-                    println!("Polling #: {}", i);
+                    info!("Polling #: {}", i);
                     if i > 0 {
                         let mut response = zmq::Message::new();
                         match requester.recv(&mut response, 0) {
                             Ok(_) => {
                                 let response: msg::Response =
                                     rmp_serde::decode::from_slice(&response).unwrap();
-                                println!("Received '{:?}': {}", response, request_nbr);
+                                info!("Received '{:?}': {}", response, request_nbr);
                                 break;
                             }
                             Err(msg) => {
@@ -108,17 +111,19 @@ pub fn client(port: u32) {
                             }
                         }
                     } else {
-                        println!("Timeout.");
-                        println!("Dropping socket");
+                        info!("Timeout.");
+                        info!("Dropping socket");
                         drop(requester);
-                        println!("Creating new socket");
+                        info!("Creating new socket");
                         requester = context.socket(zmq::REQ).unwrap();
+                        requester.set_linger(LINGER_PERIOD_MS).unwrap();
+                        info!("Linger: {:?}", requester.get_linger());
                         assert!(requester.connect(&addr).is_ok());
                     }
                 }
-                Err(msg) => println!("Polling Error: {}", msg),
+                Err(msg) => error!("Polling Error: {}", msg),
             }
         }
     }
-    println!("Leaving client function");
+    info!("Leaving client function");
 }
