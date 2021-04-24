@@ -1,6 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
+use crossbeam::channel::{Receiver, Sender};
 use log::{debug, error, info, warn};
 
 use crate::data::*;
@@ -15,7 +16,7 @@ const LINGER_PERIOD_MS: i32 = 5000;
 /// The server will receive data pushed by peers.  It will Parse the event message
 /// and act accordingly.  For a Data message, the received data will be stored in
 /// memory and then an Ack sent back to the peer.
-pub fn server(port: u32) {
+pub fn server(port: u32, input_sender: Sender<Data>) {
     let context = zmq::Context::new();
     let responder = context.socket(zmq::REP).unwrap();
     let addr = format!("tcp://*:{}", port);
@@ -28,6 +29,10 @@ pub fn server(port: u32) {
         info!("From Client: {:?}", req);
 
         // Post message to a channel for processing and then send Ack
+        match input_sender.send(req.data().clone()) {
+            Ok(_) => debug!("Sent data to channel"),
+            Err(msg) => error!("Failed to post to channel: {}", msg),
+        }
 
         thread::sleep(Duration::from_millis(1000));
 
@@ -46,7 +51,7 @@ This will connect to a peer and handle pushing new state data
  2. Find a design that will make it impossible to retry when the success state is achieved.  In the current code
  I have to remember to `break` after successfully receiving an `Ack` or I will just keep sending messages
 */
-pub fn client(port: u32) {
+pub fn client(port: u32, output_rcv: Receiver<Data>) {
     // setup client to the peer at `port` when new data is ready
     // push that dato to the peer
     // Setup ZeroMQ
@@ -60,10 +65,18 @@ pub fn client(port: u32) {
     debug!("New Socket: {:?}", requester.get_identity().unwrap());
     assert!(requester.connect(&addr).is_ok());
 
-    // Listen to for new data to be ready to push
-    for request_nbr in 0..10 {
+    let mut request_nbr = 0;
+    loop {
+        request_nbr += 1;
+        let data = match output_rcv.recv() {
+            Ok(d) => d,
+            Err(msg) => {
+                error!("Could not read from output channel: {}", msg);
+                continue;
+            }
+        };
+
         info!("Sending Data ID {}...", request_nbr);
-        let data = Data::new(&vec![1., 2., 3.]);
         let msg = msg::Request::new(request_nbr, &data);
         let mpk = rmp_serde::encode::to_vec(&msg).unwrap();
 
@@ -136,5 +149,4 @@ pub fn client(port: u32) {
             }
         }
     }
-    info!("Leaving client function");
 }

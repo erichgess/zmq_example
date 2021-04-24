@@ -4,6 +4,7 @@
 
 #![allow(dead_code)]
 
+mod compute;
 mod data;
 mod msg;
 mod server;
@@ -11,6 +12,7 @@ mod server;
 use std::thread;
 
 use clap::{App, Arg};
+use crossbeam::channel::unbounded;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 
@@ -19,16 +21,25 @@ use server::*;
 fn main() {
     // configure logger
     SimpleLogger::new()
-        .with_level(LevelFilter::Debug)
+        .with_level(LevelFilter::Info)
         .init()
         .unwrap();
     let config = config_args();
 
     let mut threads = vec![];
 
+    let (i_s, i_r) = unbounded(); // i_s goes to the server and i_r goes to the worker
+    let (o_s, o_r) = unbounded(); // o_s goes to the worker and o_r goes to the client
+
+    let (i_r2, o_s2) = (i_r.clone(), o_s.clone());
+    let worker = thread::spawn(move || {
+        compute::computer(i_r2, o_s2);
+    });
+    threads.push(worker);
+
     match config.server {
         Some(server_port) => {
-            let server = thread::spawn(move || server(server_port));
+            let server = thread::spawn(move || server(server_port, i_s));
             threads.push(server);
         }
         None => (),
@@ -36,7 +47,7 @@ fn main() {
     match config.client {
         Some(client_port) => {
             let client = thread::spawn(move || {
-                client(client_port);
+                client(client_port, o_r);
                 println!("Client Done");
             });
             threads.push(client);

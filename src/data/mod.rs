@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Data {
-    v: Vec<f32>,
+    pub v: Vec<f32>,
 }
 
 impl Data {

@@ -20,6 +20,10 @@ impl Request {
     pub fn id(&self) -> usize {
         self.id
     }
+
+    pub fn data(&self) -> &Data {
+        &self.d
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
