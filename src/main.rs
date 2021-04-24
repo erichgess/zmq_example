@@ -28,7 +28,10 @@ fn main() {
     }
     match config.client {
         Some(client_port) => {
-            let client = thread::spawn(move || client(client_port));
+            let client = thread::spawn(move || {
+                client(client_port);
+                println!("Client Done");
+            });
             threads.push(client);
         }
         None => (),

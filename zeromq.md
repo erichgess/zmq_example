@@ -63,3 +63,9 @@ In C/C++, asserts can be removed entirely in optimized code, so don’t make the
 When your socket reaches its HWM, it will either block or drop data depending on the socket type. *PUB and ROUTER sockets will drop data* if they reach their HWM, while other socket types will block. Over the inproc transport, the sender and receiver share the same buffers, so the real HWM is the sum of the HWM set by both sides.
 ```
 13. https://zguide.zeromq.org/docs/chapter2/#Missing-Message-Problem-Solver.  This again points to PubSub being the wrong solution, if messages are missing the solution is to start all Subs before the Pub.  Combined with Pub dropping messges with HWM is hit means PubSub is the wrong tool to use for our work.
+14. When leaving the function `client` if messages are in the queue, the thread does not complete.  I believe the Drop for ZeroMQ must block until the queue is empty.  As soon as I start the server up, it will exit the function and die.  Interestingly enough, when I do this, I do _not_ get all the messages from the queue, only the most recent 8.  
+
+This raises some questions:
+- How are messages ordered in the client side queue?
+- Why are only some of them delivered to the server before the client Drops the context?
+- Is it the context or the socket or what that is waiting for the server?
