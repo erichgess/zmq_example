@@ -49,4 +49,5 @@ cargo run -- -s 9090 -c 5555
 None of these setups will actually result in a calculation being done, because there is no
 input data to initiate the worker.  So, you need to tell one of the nodes to "prime" the pump
 with the `-p/--prime` flag, this will send an initial value to the worker thread and begin
-the calculation. (Multiple nodes can be set to prime the pump)
+the calculation. (Multiple nodes can be set to prime the pump, the results could be unpredictable
+with this :) )
