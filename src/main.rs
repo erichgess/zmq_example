@@ -2,6 +2,8 @@
 //! Binds REP socket to tcp://*:5555
 //! Expects "Hello" from client, replies with "World"
 
+#![allow(dead_code)]
+
 mod data;
 mod msg;
 
@@ -52,26 +54,27 @@ fn server(port: u32) {
 
         thread::sleep(Duration::from_millis(1000));
 
-        let response = Response::new(Status::Good(req.len()));
+        let response = Response::new(Status::Good(req.id()));
         let mpk = rmp_serde::encode::to_vec(&response).unwrap();
         responder.send(&mpk, 0).unwrap();
     }
 }
 
 fn client(port: u32) {
-    println!("Connecting to hello world server...\n");
+    // Setup ZeroMQ
+    let addr = format!("tcp://localhost:{}", port);
+    println!("Connecting to {}...\n", addr);
 
     let context = zmq::Context::new();
     let mut requester = context.socket(zmq::REQ).unwrap();
     println!("New Socket: {:?}", requester.get_identity().unwrap());
-
-    let addr = format!("tcp://localhost:{}", port);
     assert!(requester.connect(&addr).is_ok());
 
+    // Initialize push loop
     for request_nbr in 0..10 {
         println!("Sending Message {}...", request_nbr);
         let data = Data::new(&vec![1., 2., 3.]);
-        let msg = msg::Request::new(&data);
+        let msg = msg::Request::new(request_nbr, &data);
         let mpk = rmp_serde::encode::to_vec(&msg).unwrap();
 
         while let Err(msg) = requester.send(&mpk, 0) {
