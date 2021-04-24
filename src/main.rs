@@ -13,7 +13,7 @@ use std::thread;
 
 use clap::{App, Arg};
 use crossbeam::channel::unbounded;
-use log::LevelFilter;
+use log::{info, LevelFilter};
 use simple_logger::SimpleLogger;
 
 use server::*;
@@ -36,6 +36,12 @@ fn main() {
         compute::computer(i_r2, o_s2);
     });
     threads.push(worker);
+
+    if config.prime {
+        info!("Priming the pump");
+        let primer = data::Data::new(&vec![1., 2., 3.]);
+        i_s.send(primer).unwrap();
+    }
 
     match config.server {
         Some(server_port) => {
@@ -63,6 +69,7 @@ fn main() {
 struct Config {
     server: Option<u32>,
     client: Option<u32>,
+    prime: bool,
 }
 
 fn config_args() -> Config {
@@ -79,13 +86,16 @@ fn config_args() -> Config {
                 .long("client-port")
                 .takes_value(true),
         )
+        .arg(Arg::with_name("prime").short("p").long("prime"))
         .get_matches();
 
     let server_port: Option<u32> = matches.value_of("server-port").map(|v| v.parse().unwrap());
     let client_port: Option<u32> = matches.value_of("client-port").map(|v| v.parse().unwrap());
+    let prime = matches.is_present("prime");
 
     Config {
         server: server_port,
         client: client_port,
+        prime,
     }
 }
