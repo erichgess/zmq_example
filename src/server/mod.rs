@@ -7,6 +7,7 @@ use std::time::Duration;
 const RETRY_LIMIT: usize = 3;
 const RETRY_DELAY_MS: u64 = 1000;
 const POLL_TIMEOUT_MS: i64 = 5000;
+const LINGER_PERIOD_MS: i32 = -1;
 
 /// The server will receive data pushed by peers.  It will Parse the event message
 /// and act accordingly.  For a Data message, the received data will be stored in
@@ -51,6 +52,8 @@ pub fn client(port: u32) {
 
     let context = zmq::Context::new();
     let mut requester = context.socket(zmq::REQ).unwrap();
+    requester.set_linger(LINGER_PERIOD_MS).unwrap();
+    println!("Linger: {:?}", requester.get_linger());
     println!("New Socket: {:?}", requester.get_identity().unwrap());
     assert!(requester.connect(&addr).is_ok());
 

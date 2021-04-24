@@ -87,4 +87,10 @@ Context termination is performed in the following steps:
     After interrupting all blocking calls, zmq_ctx_term() shall block until the following conditions are satisfied: <itemizedlist> <listitem> All sockets open within context have been closed with zmq_close().
     For each socket within context, all messages sent by the application with zmq_send() have either been physically transferred to a network peer, or the socket's linger period set with the ZMQ_LINGER socket option has expired.
 ```
-Looks like I need to consider setting the linger period.
+Looks like I need to consider setting the linger period.  The default linger is -1.
+```none
+The default value of -1 specifies an infinite linger period. Pending messages shall not be discarded after a call to zmq_close(); attempting to terminate the socket's context with zmq_term() shall block until all pending messages have been sent to a peer.
+```
+Of note *"attempting to terminate the socket's context with zmq_term() shall block until either all pending messages have been sent to a peer, or the linger period expires, after which any pending messages shall be discarded."*. This is why `client` hangs.
+
+The function `zmq_close()` is called when a socket is dropped: e.g. during the retry state.  So, we need to think about how linger would effect retries.  Could this explain why I only get a subset of messages when the server comes back online?
