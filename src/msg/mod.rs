@@ -31,9 +31,13 @@ impl Response {
     pub fn new(s: Status) -> Response {
         Response { status: s }
     }
+
+    pub fn status(&self) -> Status {
+        self.status
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum Status {
     Good(usize),
     Bad,

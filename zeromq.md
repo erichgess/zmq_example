@@ -96,3 +96,7 @@ The default value of -1 specifies an infinite linger period. Pending messages sh
 Of note *"attempting to terminate the socket's context with zmq_term() shall block until either all pending messages have been sent to a peer, or the linger period expires, after which any pending messages shall be discarded."*. This is why `client` hangs.
 
 The function `zmq_close()` is called when a socket is dropped: e.g. during the retry state.  So, we need to think about how linger would effect retries.  Could this explain why I only get a subset of messages when the server comes back online?
+
+DON'T FORGET THAT THIS ALSO ALL APPLIES TO THE SERVER SIDE!
+
+15. When the server receives and Acks messages which the client had decided to drop, one thing I have noticed is that the client does not process the incoming Acks. It looks to know how to properly associate REQ to REP.  Although, I will still have logic to check to make sure that the Acked Message ID is the expected Message ID.

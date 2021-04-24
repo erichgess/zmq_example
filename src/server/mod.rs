@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use log::{error, info};
+use log::{debug, error, info, warn};
 
 use crate::data::*;
 use crate::msg;
@@ -56,8 +56,8 @@ pub fn client(port: u32) {
     let context = zmq::Context::new();
     let mut requester = context.socket(zmq::REQ).unwrap();
     requester.set_linger(LINGER_PERIOD_MS).unwrap();
-    info!("Linger: {:?}", requester.get_linger());
-    info!("New Socket: {:?}", requester.get_identity().unwrap());
+    debug!("Linger: {:?}", requester.get_linger());
+    debug!("New Socket: {:?}", requester.get_identity().unwrap());
     assert!(requester.connect(&addr).is_ok());
 
     // Listen to for new data to be ready to push
@@ -73,13 +73,13 @@ pub fn client(port: u32) {
             attempts += 1;
 
             if attempts > RETRY_LIMIT {
-                info!(
+                error!(
                     "Exceeded max retry limit ({}). Dropping message",
                     RETRY_LIMIT
                 );
                 break;
             } else if attempts > 1 {
-                info!("Wait {}ms then retry...", RETRY_DELAY_MS);
+                warn!("Wait {}ms then retry...", RETRY_DELAY_MS);
                 thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
             }
 
@@ -96,14 +96,25 @@ pub fn client(port: u32) {
             match requester.poll(zmq::PollEvents::POLLIN, POLL_TIMEOUT_MS) {
                 Ok(i) => {
                     //
-                    info!("Polling #: {}", i);
+                    debug!("Polling #: {}", i);
                     if i > 0 {
                         let mut response = zmq::Message::new();
                         match requester.recv(&mut response, 0) {
                             Ok(_) => {
                                 let response: msg::Response =
                                     rmp_serde::decode::from_slice(&response).unwrap();
-                                info!("Received '{:?}': {}", response, request_nbr);
+                                match response.status() {
+                                    msg::Status::Good(id) => {
+                                        if id != request_nbr {
+                                            warn!("Received Ack for wrong message.  Got {}, expected {}.", id, request_nbr);
+                                        } else {
+                                            info!("Received Ack for {}", request_nbr);
+                                        }
+                                    }
+                                    msg::Status::Bad => {
+                                        warn!("Received Bad from peer");
+                                    }
+                                }
                                 break;
                             }
                             Err(msg) => {
@@ -112,12 +123,12 @@ pub fn client(port: u32) {
                         }
                     } else {
                         info!("Timeout.");
-                        info!("Dropping socket");
+                        debug!("Dropping socket");
                         drop(requester);
-                        info!("Creating new socket");
+                        debug!("Creating new socket");
                         requester = context.socket(zmq::REQ).unwrap();
                         requester.set_linger(LINGER_PERIOD_MS).unwrap();
-                        info!("Linger: {:?}", requester.get_linger());
+                        debug!("Linger: {:?}", requester.get_linger());
                         assert!(requester.connect(&addr).is_ok());
                     }
                 }
