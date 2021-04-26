@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::data::Data;
 
+pub enum Signal {
+    Stop,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Request {
     id: usize,

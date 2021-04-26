@@ -32,6 +32,7 @@ fn main() {
 
     let (i_s, i_r) = unbounded(); // i_s goes to the server and i_r goes to the worker
     let (o_s, o_r) = unbounded(); // o_s goes to the worker and o_r goes to the client
+    let (sig_s, sig_r) = unbounded();
 
     let (cell_0, neighbor_0) = if config.cell == "a" {
         (Data::new(&vec![config.a0]), Data::new(&vec![config.b0]))
@@ -41,15 +42,15 @@ fn main() {
         panic!("Invalid cell {}", config.cell)
     };
 
-    let (i_r2, o_s2) = (i_r.clone(), o_s.clone());
     let worker = thread::spawn(move || {
-        compute::computer(i_r2, o_s2, cell_0, neighbor_0);
+        compute::computer(i_r, o_s, cell_0, neighbor_0, sig_s);
     });
     threads.push(worker);
 
     match config.server {
         Some(server_port) => {
-            let server = thread::spawn(move || server(server_port, i_s));
+            let sig_r = sig_r.clone();
+            let server = thread::spawn(move || server(server_port, i_s, sig_r));
             threads.push(server);
         }
         None => (),
@@ -59,7 +60,7 @@ fn main() {
         Some(client_port) => {
             let client = thread::spawn(move || {
                 client(client_port, o_r);
-                println!("Client Done");
+                info!("Client Done");
             });
             threads.push(client);
         }

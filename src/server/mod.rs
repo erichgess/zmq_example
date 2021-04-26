@@ -4,8 +4,8 @@ use std::time::Duration;
 use crossbeam::channel::{Receiver, Sender};
 use log::{debug, error, info, warn};
 
-use crate::data::*;
 use crate::msg;
+use crate::{data::*, msg::Signal};
 
 /// Constants
 const RETRY_LIMIT: usize = 3;
@@ -16,17 +16,29 @@ const LINGER_PERIOD_MS: i32 = 10000;
 /// The server will receive data pushed by peers.  It will Parse the event message
 /// and act accordingly.  For a Data message, the received data will be stored in
 /// memory and then an Ack sent back to the peer.
-pub fn server(port: u32, input_sender: Sender<Data>) {
+pub fn server(port: u32, input_sender: Sender<Data>, signal: Receiver<Signal>) {
     let context = zmq::Context::new();
     let responder = context.socket(zmq::REP).unwrap();
+    responder.set_rcvtimeo(POLL_TIMEOUT_MS as i32).unwrap();
     let addr = format!("tcp://*:{}", port);
     assert!(responder.bind(&addr).is_ok());
 
     let mut msg = zmq::Message::new();
     loop {
-        responder.recv(&mut msg, 0).unwrap();
+        // Check for stop signal
+        info!("Check for signals");
+        match signal.try_recv() {
+            Ok(Signal::Stop) => break,
+            _ => (),
+        }
+
+        info!("Listen for message");
+        match responder.recv(&mut msg, 0) {
+            Ok(()) => (),
+            Err(_) => continue,
+        }
         let req: msg::Request = rmp_serde::decode::from_slice(&msg).unwrap();
-        info!("From Client: {:?}", req);
+        info!("Message: {:?}", req);
 
         // Post message to a channel for processing and then send Ack
         match input_sender.send(req.data().clone()) {
@@ -36,10 +48,13 @@ pub fn server(port: u32, input_sender: Sender<Data>) {
 
         thread::sleep(Duration::from_millis(1000));
 
+        info!("Sending Ack");
         let response = msg::Response::new(msg::Status::Good(req.id()));
         let mpk = rmp_serde::encode::to_vec(&response).unwrap();
         responder.send(&mpk, 0).unwrap();
+        info!("Ack Sent");
     }
+    info!("Stopping server thread");
 }
 
 /**
@@ -71,8 +86,8 @@ pub fn client(port: u32, output_rcv: Receiver<Data>) {
         let data = match output_rcv.recv() {
             Ok(d) => d,
             Err(msg) => {
-                error!("Could not read from output channel: {}", msg);
-                continue;
+                info!("Channel Disconnected: {}", msg);
+                break;
             }
         };
 
@@ -105,7 +120,7 @@ pub fn client(port: u32, output_rcv: Receiver<Data>) {
             }
 
             // Wait for peer to Ack the message
-            println!("Waiting for server...");
+            info!("Waiting for Ack");
             match requester.poll(zmq::PollEvents::POLLIN, POLL_TIMEOUT_MS) {
                 Ok(i) => {
                     //
@@ -149,4 +164,5 @@ pub fn client(port: u32, output_rcv: Receiver<Data>) {
             }
         }
     }
+    info!("Stopping client thread");
 }
