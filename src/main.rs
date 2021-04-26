@@ -13,6 +13,7 @@ use std::thread;
 
 use clap::{App, Arg};
 use crossbeam::channel::unbounded;
+use data::Data;
 use log::{info, LevelFilter};
 use simple_logger::SimpleLogger;
 
@@ -31,17 +32,19 @@ fn main() {
     let (i_s, i_r) = unbounded(); // i_s goes to the server and i_r goes to the worker
     let (o_s, o_r) = unbounded(); // o_s goes to the worker and o_r goes to the client
 
+    let (cell_0, neighbor_0) = if config.cell == "a" {
+        (Data::new(&vec![config.a0]), Data::new(&vec![config.b0]))
+    } else if config.cell == "b" {
+        (Data::new(&vec![config.b0]), Data::new(&vec![config.a0]))
+    } else {
+        panic!("Invalid cell {}", config.cell)
+    };
+
     let (i_r2, o_s2) = (i_r.clone(), o_s.clone());
     let worker = thread::spawn(move || {
-        compute::computer(i_r2, o_s2);
+        compute::computer(i_r2, o_s2, cell_0, neighbor_0);
     });
     threads.push(worker);
-
-    if config.prime {
-        info!("Priming the pump");
-        let primer = data::Data::new(&vec![1., 2., 3.]);
-        i_s.send(primer).unwrap();
-    }
 
     match config.server {
         Some(server_port) => {
@@ -69,7 +72,9 @@ fn main() {
 struct Config {
     server: Option<u32>,
     client: Option<u32>,
-    prime: bool,
+    cell: String,
+    a0: f32,
+    b0: f32,
 }
 
 fn config_args() -> Config {
@@ -86,16 +91,37 @@ fn config_args() -> Config {
                 .long("client-port")
                 .takes_value(true),
         )
-        .arg(Arg::with_name("prime").short("p").long("prime"))
+        .arg(
+            Arg::with_name("cell")
+                .long("cell")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("a0")
+                .long("a0")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("b0")
+                .long("b0")
+                .required(true)
+                .takes_value(true),
+        )
         .get_matches();
 
     let server_port: Option<u32> = matches.value_of("server-port").map(|v| v.parse().unwrap());
     let client_port: Option<u32> = matches.value_of("client-port").map(|v| v.parse().unwrap());
-    let prime = matches.is_present("prime");
+    let cell = matches.value_of("cell").unwrap().into();
+    let a0 = matches.value_of("a0").unwrap().parse::<f32>().unwrap();
+    let b0 = matches.value_of("b0").unwrap().parse::<f32>().unwrap();
 
     Config {
         server: server_port,
         client: client_port,
-        prime,
+        cell,
+        a0,
+        b0,
     }
 }

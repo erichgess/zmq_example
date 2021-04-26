@@ -10,8 +10,8 @@ use crate::msg;
 /// Constants
 const RETRY_LIMIT: usize = 3;
 const RETRY_DELAY_MS: u64 = 1000;
-const POLL_TIMEOUT_MS: i64 = 5000;
-const LINGER_PERIOD_MS: i32 = 5000;
+const POLL_TIMEOUT_MS: i64 = 10000;
+const LINGER_PERIOD_MS: i32 = 10000;
 
 /// The server will receive data pushed by peers.  It will Parse the event message
 /// and act accordingly.  For a Data message, the received data will be stored in
