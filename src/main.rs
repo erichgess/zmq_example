@@ -26,6 +26,7 @@ fn main() {
         .init()
         .unwrap();
     let config = config_args();
+    info!("Config: {:?}", config);
 
     let mut threads = vec![];
 
@@ -69,6 +70,7 @@ fn main() {
     }
 }
 
+#[derive(Debug)]
 struct Config {
     server: Option<u32>,
     client: Option<u32>,
