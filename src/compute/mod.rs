@@ -1,15 +1,19 @@
-use crossbeam::channel::{Receiver, Sender};
-use log::{debug, error, info, warn};
+use crossbeam::channel::{Receiver, SendError, Sender};
+use log::{debug, error, info};
 
-use crate::{data::Data, msg::Signal};
+use crate::{
+    data::Data,
+    msg::Signal,
+    signal::{SignalChan, Stopped},
+};
 
 pub fn computer(
     input: Receiver<Data>,
     output: Sender<Data>,
     cell_0: Data,
     neighbor_0: Data,
-    signal: Sender<Signal>,
-) {
+    signal: SignalChan,
+) -> Result<Stopped, SendError<Signal>> {
     let mut out_data = f(1, &cell_0, &neighbor_0);
     for frame in 1..=5 {
         if frame > 1 {
@@ -37,10 +41,7 @@ pub fn computer(
 
     info!("Final Value is {:?}", out_data);
     info!("Beginning Shutdown");
-    match signal.send(Signal::Stop) {
-        Ok(()) => (),
-        Err(msg) => warn!("Signal channel disconnected: {}", msg),
-    }
+    signal.shutdown()
 }
 
 pub fn f(frame: u32, cell: &Data, neighbor: &Data) -> Data {

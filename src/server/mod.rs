@@ -38,6 +38,8 @@ pub mod receiver {
                 _ => (),
             }
 
+            // Move this logic behind a channel so that I can run select? But then I am not guaranteed that
+            // the Stop signal will be read if there are always messages in the Network channel
             info!("Listen for message");
             match responder.recv(&mut msg, 0) {
                 Ok(()) => (),

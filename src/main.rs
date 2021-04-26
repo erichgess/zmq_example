@@ -8,14 +8,16 @@ mod compute;
 mod data;
 mod msg;
 mod server;
+mod signal;
 
 use std::{os::raw::c_int, thread};
 
 use clap::{App, Arg};
 use crossbeam::channel::{unbounded, Sender};
 use data::Data;
-use log::{info, warn, LevelFilter};
+use log::{error, info, warn, LevelFilter};
 use msg::Signal;
+use signal::SignalChan;
 use signal_hook::{self, consts::*, iterator::Signals};
 use simple_logger::SimpleLogger;
 
@@ -47,7 +49,10 @@ fn main() {
     };
 
     let worker = thread::spawn(move || {
-        compute::computer(i_r, o_s, cell_0, neighbor_0, sig_s);
+        match compute::computer(i_r, o_s, cell_0, neighbor_0, SignalChan::new(sig_s)) {
+            Ok(_) => info!("Worker posted shutdown signal"),
+            Err(msg) => error!("Worker failed to post shutdown signal: {}", msg),
+        }
     });
     threads.push(worker);
 
