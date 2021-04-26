@@ -40,12 +40,11 @@ fn main() {
 
     start_signal_handler(sig_s.clone());
 
-    let (cell_0, neighbor_0) = if config.cell == "a" {
-        (Data::new(&vec![config.a0]), Data::new(&vec![config.b0]))
-    } else if config.cell == "b" {
-        (Data::new(&vec![config.b0]), Data::new(&vec![config.a0]))
-    } else {
-        panic!("Invalid cell {}", config.cell)
+    let (cell_0, neighbor_0) = match config.mine() {
+        Some("a") => (Data::new(&vec![config.a0]), Data::new(&vec![config.b0])),
+        Some("b") => (Data::new(&vec![config.b0]), Data::new(&vec![config.a0])),
+        Some(cell) => panic!("Invalid cell {}", cell),
+        None => panic!("No host cell specified"),
     };
 
     let worker = thread::spawn(move || {
@@ -65,15 +64,14 @@ fn main() {
         None => (),
     }
 
-    match config.client {
-        Some(client_port) => {
-            let client = thread::spawn(move || {
-                client(client_port, o_r);
-                info!("Client Done");
-            });
-            threads.push(client);
-        }
-        None => (),
+    for (_cell, host) in config.cell_hosts.iter().filter(|(_, h)| h != "self") {
+        let o_r = o_r.clone();
+        let host = host.clone();
+        let client = thread::spawn(move || {
+            client(host, o_r);
+            info!("Client Done");
+        });
+        threads.push(client);
     }
 
     // Wait until all threads are complete to exit the service
@@ -98,9 +96,18 @@ fn start_signal_handler(chan: Sender<Signal>) -> thread::JoinHandle<()> {
 struct Config {
     server: Option<u32>,
     client: Option<u32>,
-    cell: String,
+    cell_hosts: Vec<(String, String)>,
     a0: f32,
     b0: f32,
+}
+
+impl Config {
+    fn mine(&self) -> Option<&str> {
+        self.cell_hosts
+            .iter()
+            .find(|(_, h)| h == "self")
+            .map(|(c, _)| c.as_str())
+    }
 }
 
 fn config_args() -> Config {
@@ -118,8 +125,14 @@ fn config_args() -> Config {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("cell")
-                .long("cell")
+            Arg::with_name("a")
+                .long("a")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("b")
+                .long("b")
                 .required(true)
                 .takes_value(true),
         )
@@ -139,14 +152,15 @@ fn config_args() -> Config {
 
     let server_port: Option<u32> = matches.value_of("server-port").map(|v| v.parse().unwrap());
     let client_port: Option<u32> = matches.value_of("client-port").map(|v| v.parse().unwrap());
-    let cell = matches.value_of("cell").unwrap().into();
+    let a = matches.value_of("a").unwrap().into();
+    let b = matches.value_of("b").unwrap().into();
     let a0 = matches.value_of("a0").unwrap().parse::<f32>().unwrap();
     let b0 = matches.value_of("b0").unwrap().parse::<f32>().unwrap();
 
     Config {
         server: server_port,
         client: client_port,
-        cell,
+        cell_hosts: vec![("a".into(), a), ("b".into(), b)],
         a0,
         b0,
     }

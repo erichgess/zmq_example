@@ -78,11 +78,10 @@ This will connect to a peer and handle pushing new state data
 pub mod sender {
     use super::*;
 
-    pub fn client(port: u32, output_rcv: Receiver<Data>) {
+    pub fn client(addr: String, output_rcv: Receiver<Data>) {
         // setup client to the peer at `port` when new data is ready
         // push that dato to the peer
         // Setup ZeroMQ
-        let addr = format!("tcp://localhost:{}", port);
         info!("Connecting to {}...\n", addr);
 
         let context = zmq::Context::new();
