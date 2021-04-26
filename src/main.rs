@@ -17,7 +17,7 @@ use data::Data;
 use log::{info, LevelFilter};
 use simple_logger::SimpleLogger;
 
-use server::*;
+use server::{receiver::server, sender::client};
 
 fn main() {
     // configure logger
@@ -43,7 +43,7 @@ fn main() {
     };
 
     let worker = thread::spawn(move || {
-        compute::computer(i_r, o_s, cell_0, neighbor_0, sig_s);
+        compute::computer(i_r, o_s, cell_0, neighbor_0);
     });
     threads.push(worker);
 

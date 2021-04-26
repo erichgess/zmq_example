@@ -3,13 +3,7 @@ use log::{debug, error, info};
 
 use crate::{data::Data, msg::Signal};
 
-pub fn computer(
-    input: Receiver<Data>,
-    output: Sender<Data>,
-    cell_0: Data,
-    neighbor_0: Data,
-    signal: Sender<Signal>,
-) {
+pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neighbor_0: Data) {
     let mut out_data = f(1, &cell_0, &neighbor_0);
     for frame in 1..=5 {
         if frame > 1 {
@@ -19,7 +13,8 @@ pub fn computer(
                     out_data = f(frame, &out_data, &neighbor);
                 }
                 Err(msg) => {
-                    panic!("Failed to read from channel: {}", msg)
+                    error!("Failed to read from channel.  Shutting down: {}", msg);
+                    break;
                 }
             }
         }
@@ -35,9 +30,7 @@ pub fn computer(
     }
 
     info!("Final Value is {:?}", out_data);
-    info!("Work complete.  Beginning Shutdown");
-    signal.send(Signal::Stop).unwrap();
-    signal.send(Signal::Stop).unwrap();
+    info!("Beginning Shutdown");
 }
 
 pub fn f(frame: u32, cell: &Data, neighbor: &Data) -> Data {
