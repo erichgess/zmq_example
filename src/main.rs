@@ -9,12 +9,14 @@ mod data;
 mod msg;
 mod server;
 
-use std::thread;
+use std::{os::raw::c_int, thread};
 
 use clap::{App, Arg};
-use crossbeam::channel::unbounded;
+use crossbeam::channel::{unbounded, Sender};
 use data::Data;
-use log::{info, LevelFilter};
+use log::{info, warn, LevelFilter};
+use msg::Signal;
+use signal_hook::{self, consts::*, iterator::Signals};
 use simple_logger::SimpleLogger;
 
 use server::{receiver::server, sender::client};
@@ -33,6 +35,8 @@ fn main() {
     let (i_s, i_r) = unbounded(); // i_s goes to the server and i_r goes to the worker
     let (o_s, o_r) = unbounded(); // o_s goes to the worker and o_r goes to the client
     let (sig_s, sig_r) = unbounded();
+
+    start_signal_handler(sig_s);
 
     let (cell_0, neighbor_0) = if config.cell == "a" {
         (Data::new(&vec![config.a0]), Data::new(&vec![config.b0]))
@@ -71,6 +75,18 @@ fn main() {
     for t in threads {
         t.join().unwrap();
     }
+}
+
+fn start_signal_handler(chan: Sender<Signal>) -> thread::JoinHandle<()> {
+    const SIGNALS: &[c_int] = &[SIGTERM, SIGQUIT, SIGINT, SIGTSTP];
+    let mut sigs = Signals::new(SIGNALS).unwrap();
+
+    thread::spawn(move || {
+        for sig in &mut sigs {
+            warn!("Recieved Signal {}", sig);
+            chan.send(Signal::Stop).unwrap();
+        }
+    })
 }
 
 #[derive(Debug)]

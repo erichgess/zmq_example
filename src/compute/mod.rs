@@ -1,7 +1,7 @@
 use crossbeam::channel::{Receiver, Sender};
 use log::{debug, error, info};
 
-use crate::{data::Data, msg::Signal};
+use crate::data::Data;
 
 pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neighbor_0: Data) {
     let mut out_data = f(1, &cell_0, &neighbor_0);
