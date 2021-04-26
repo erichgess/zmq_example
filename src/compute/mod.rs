@@ -9,7 +9,7 @@ pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neigh
         if frame > 0 {
             match input.recv() {
                 Ok(neighbor) => {
-                    info!("Input: {:?}", neighbor);
+                    info!("Neighbor: {:?}", neighbor);
                     out_data = f(&out_data, &neighbor);
                 }
                 Err(msg) => {
@@ -21,7 +21,7 @@ pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neigh
         // Sleep to fake doing work!
         std::thread::sleep(std::time::Duration::from_millis(1000));
 
-        debug!("Output: {:?}", out_data);
+        debug!("My State: {:?}", out_data);
         match output.send(out_data.clone()) {
             Ok(_) => debug!("Wrote data to output channel"),
             Err(msg) => error!("Failed to send data to output channel: {}", msg),
@@ -30,7 +30,10 @@ pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neigh
 }
 
 pub fn f(cell: &Data, neighbor: &Data) -> Data {
+    assert!(cell.frame == neighbor.frame);
+
     Data {
+        frame: cell.frame + 1,
         v: cell
             .v
             .iter()
