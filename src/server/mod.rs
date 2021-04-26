@@ -31,14 +31,17 @@ pub mod receiver {
             // Check for stop signal
             info!("Check for signals");
             match signal.try_recv() {
-                Ok(Signal::Stop) => break,
+                Ok(Signal::Stop) => {
+                    info!("Received shutdown signal");
+                    break;
+                }
                 _ => (),
             }
 
             info!("Listen for message");
             match responder.recv(&mut msg, 0) {
                 Ok(()) => (),
-                Err(_) => continue,
+                Err(_) => continue, // TODO: I don't like having the continue here because it makes it hard to see the cycles that have no exit
             }
             let req: msg::Request = rmp_serde::decode::from_slice(&msg).unwrap();
             info!("Message: {:?}", req);

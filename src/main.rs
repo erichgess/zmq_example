@@ -36,7 +36,7 @@ fn main() {
     let (o_s, o_r) = unbounded(); // o_s goes to the worker and o_r goes to the client
     let (sig_s, sig_r) = unbounded();
 
-    start_signal_handler(sig_s);
+    start_signal_handler(sig_s.clone());
 
     let (cell_0, neighbor_0) = if config.cell == "a" {
         (Data::new(&vec![config.a0]), Data::new(&vec![config.b0]))
@@ -47,7 +47,7 @@ fn main() {
     };
 
     let worker = thread::spawn(move || {
-        compute::computer(i_r, o_s, cell_0, neighbor_0);
+        compute::computer(i_r, o_s, cell_0, neighbor_0, sig_s);
     });
     threads.push(worker);
 
