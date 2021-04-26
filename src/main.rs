@@ -54,6 +54,7 @@ fn main() {
         }
         None => (),
     }
+
     match config.client {
         Some(client_port) => {
             let client = thread::spawn(move || {
@@ -65,6 +66,7 @@ fn main() {
         None => (),
     }
 
+    // Wait until all threads are complete to exit the service
     for t in threads {
         t.join().unwrap();
     }
