@@ -40,6 +40,7 @@ REQ From A => Means that A has not received a message from us in the expected am
 3. Be able to send a response back to the specific peer that a message came from.  This is required for ACK & ERR semantics to work.
 4. Be able to send multiple messages to a peer, concurrently. SEND/RECV mechanics are asynchronous.  This is required to give flexibility to adapt to needs. This is specifically for SEND/RECV which, even for asynchronous, are required to implement SEND/ACK semantics.
 5. Be able to process RECV messages concurrently.  That is, on the receiver side, multiple messages can be received from peers without having to REPLY.  Again, this is for scalable growth and flexibility: to avoid disruptions on peers it may be best to pull N messages off the queue begin processing them concurrently, and RESPOND with ACKs asynchronously.
+6. Be able to handle receiving messages out of order and but make it appear to be in order to the user.  For example, if waiting on data for frame 3 and we get data for frames 4, 5, and 6.  Then buffer that data until frame 3 arrives then send frames 3, 4, 5, and 6 to the user (in that order).  Will also need to manage the situation where we never get frame 3 but other frames keep arriving.
 
 
 ## Things I am missing
