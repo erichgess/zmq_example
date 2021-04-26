@@ -4,13 +4,13 @@ use log::{debug, error, info};
 use crate::data::Data;
 
 pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neighbor_0: Data) {
-    let mut out_data = f(&cell_0, &neighbor_0);
-    for frame in 0..5 {
-        if frame > 0 {
+    let mut out_data = f(1, &cell_0, &neighbor_0);
+    for frame in 1..=5 {
+        if frame > 1 {
             match input.recv() {
                 Ok(neighbor) => {
                     info!("Neighbor: {:?}", neighbor);
-                    out_data = f(&out_data, &neighbor);
+                    out_data = f(frame, &out_data, &neighbor);
                 }
                 Err(msg) => {
                     panic!("Failed to read from channel: {}", msg)
@@ -21,7 +21,7 @@ pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neigh
         // Sleep to fake doing work!
         std::thread::sleep(std::time::Duration::from_millis(1000));
 
-        debug!("My State: {:?}", out_data);
+        info!("My State: {:?}", out_data);
         match output.send(out_data.clone()) {
             Ok(_) => debug!("Wrote data to output channel"),
             Err(msg) => error!("Failed to send data to output channel: {}", msg),
@@ -29,11 +29,12 @@ pub fn computer(input: Receiver<Data>, output: Sender<Data>, cell_0: Data, neigh
     }
 }
 
-pub fn f(cell: &Data, neighbor: &Data) -> Data {
+pub fn f(frame: u32, cell: &Data, neighbor: &Data) -> Data {
     assert!(cell.frame == neighbor.frame);
+    assert!(cell.frame == frame - 1);
 
     Data {
-        frame: cell.frame + 1,
+        frame,
         v: cell
             .v
             .iter()
